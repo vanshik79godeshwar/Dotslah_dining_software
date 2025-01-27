@@ -8,8 +8,8 @@ router.post("/order", async (req, res) => {
   const { participantId, name, email } = req.body;
 
   try {
-    // Check if the participant already exists in the database
-    const existingOrder = await Order.findOne({ participantId });
+    // Fetch the most recent order for the participant
+    const existingOrder = await Order.findOne({ participantId }).sort({ lastOrderTime: -1 });
 
     if (!existingOrder) {
       // First-time order
@@ -28,9 +28,14 @@ router.post("/order", async (req, res) => {
     const timeDifference = (currentTime - existingOrder.lastOrderTime) / (1000 * 60 * 60); // Convert ms to hours
 
     if (timeDifference >= 3) {
-      // Allow the order and update the lastOrderTime
-      existingOrder.lastOrderTime = currentTime;
-      await existingOrder.save();
+      // Allow the order and create a new record
+      const newOrder = new Order({
+        participantId,
+        name,
+        email,
+        lastOrderTime: currentTime,
+      });
+      await newOrder.save();
       return res.status(200).json({ message: "Order placed successfully!" });
     } else {
       // Deny the order as it's within the 3-hour limit
